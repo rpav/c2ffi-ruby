@@ -1,0 +1,58 @@
+#!/usr/bin/ruby
+##
+## This is meant to be more of an unsophisticated demo than a
+## production tool.  Generating spec and ruby files should be part of
+## your build system.  But this is how you can use it.
+##
+
+require 'optparse'
+require 'json'
+require 'c2ffi'
+
+options = {}
+OptionParser.new { |opts|
+  opts.banner = "Usage: c2ffi-ruby -M <module> -l lib1[,lib2,...] [specfile [specfile..]]"
+
+  opts.on("-M", "--module NAME", "Ruby module name") { |o|
+    options[:module] = o
+  }
+
+  opts.on("-l", "--libs LIBS", "Libraries to link, comma-separated") { |o|
+    options[:libs] = o.split(",")
+  }
+
+  opts.on("-o", "--output FILE", "Output file") { |o|
+    options[:output] = o
+  }
+
+  opts.on("-h", "--help", "Show this message") {
+    puts opts
+    exit
+  }
+}.parse!
+
+if(!options[:module])
+  puts "Module name required! (use -M)"
+  exit 1
+elsif(!options[:libs])
+  puts "Libraries required! (use -l)"
+  exit 1
+elsif(ARGV.size < 1)
+  puts "Input files required!"
+  exit 1
+end
+
+spec = []
+ARGV.each { | file |
+  File.open(file) { | io |
+    spec += JSON.parse(io.read, Hash[:symbolize_names, true])
+  }
+}
+
+if options[:output]
+  open(options[:output], "w") { |io|
+    C2FFI::Parser.parse(options[:module], options[:libs], spec, io)
+  }
+else
+  C2FFI::Parser.parse(options[:module], options[:libs], spec)
+end
